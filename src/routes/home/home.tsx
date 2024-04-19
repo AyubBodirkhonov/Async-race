@@ -28,6 +28,7 @@ interface Car {
   name: string;
   color: string;
   distance?: number;
+  velocity?: number;
 }
 
 const commonStyles = {
@@ -42,6 +43,8 @@ const commonStyleButton = {
 };
 
 const API_SERVER = "http://localhost:3000";
+const MAX_DISTANCE: any = "1200px";
+const TRACK_WIDTH: any = "20px";
 
 const Home = () => {
   const [initialColor, setInitialColor] = useState("#000000");
@@ -57,21 +60,40 @@ const Home = () => {
     name: "",
     color: "",
   });
+  const [carPosition, setCarPosition] = useState(0);
 
-  // Math.floor(Math.random() * 4)
+  const TRACK_WIDTH: number = 100;
+  console.log(carPosition);
 
-  // for await () {
-  //   newCars(carModelsName[Math.floor(Math.random() * (carModelsName.length - 1))])
-  // }
+  const startEngine = async (carId: number | string) => {
+    try {
+      const response = await axios.patch(
+        `${API_SERVER}/engine?id=${carId}&status=started`
+      );
+      console.log(response);
+      if (response.status === 200) {
+        const { distance, velocity } = response.data;
+        const time = distance / velocity;
+        const velocityByPercent = TRACK_WIDTH / (time / 100);
+        let distancePassed = 0;
+        while (distancePassed < TRACK_WIDTH) {
+          console.log(distancePassed, velocityByPercent);
+          distancePassed += velocityByPercent;
+          setCarPosition(distancePassed);
+        }
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  };
 
   const generateRandomCars = async () => {
     for (let i = 0; i < 100; i++) {
-      const response = await axios.post(`${API_SERVER}/garage`, {
+      await axios.post(`${API_SERVER}/garage`, {
         id: uuidv4(),
         name: carNames[Math.floor(Math.random() * (carNames.length - 1))],
         color: carColors[Math.floor(Math.random() * (carColors.length - 1))],
       });
-
     }
 
     await fetchGarageData();
@@ -100,7 +122,6 @@ const Home = () => {
   };
 
   const updateGarageData = async (updatedCar: Car) => {
-    console.log(updatedCar);
     try {
       const response = await axios.put(
         `${API_SERVER}/garage/${selectedCar.id}`,
@@ -256,7 +277,7 @@ const Home = () => {
             onChange={(e) =>
               setSelectedCar({ ...selectedCar, name: e?.target?.value })
             }
-            label="TYPE CAR BRAND"
+            label="UPDATE CAR BRAND"
             variant="outlined"
             size="small"
           />
@@ -307,8 +328,9 @@ const Home = () => {
       />
       {/* DIVIDER BOX */}
 
-      <Box sx={{ display: "flex", position: "relative" }} my={2}>
-        <Box mr={7}>
+      {/* CAR RACE CONTAINER */}
+      <Box sx={{ display: "flex", position: "relative", width: "100%" }} my={2}>
+        <Box sx={{ position: "relative" }}>
           {currentCars.map((car) => (
             <Box
               key={car.id}
@@ -316,7 +338,7 @@ const Home = () => {
                 display: "flex",
                 alignItems: "center",
                 gap: "10px",
-                padding: "5px",
+                padding: "15px",
                 margin: "20px",
               }}
             >
@@ -340,14 +362,15 @@ const Home = () => {
               </Stack>
               <Stack direction="column" spacing={1}>
                 <Button
-                  style={{ ...commonStyleButton }}
+                  onClick={() => startEngine(car.id)}
+                  sx={{ ...commonStyleButton }}
                   variant="outlined"
                   color="success"
                 >
                   A
                 </Button>
                 <Button
-                  style={{ ...commonStyleButton }}
+                  sx={{ ...commonStyleButton }}
                   variant="outlined"
                   color="error"
                 >
@@ -356,14 +379,20 @@ const Home = () => {
               </Stack>
               {/* Render cars on the race track */}
               <Box
-              // sx={{
-              //   top: "50%",
-              //   left: `${cars.distance}%`,
-              //   transform: "translate(-50%, -50%)",
-              // }}
+                sx={{
+                  position: "relative",
+                  width: "50px",
+                  height: "50px",
+                }}
               >
                 <CarSvg
-                  style={{ width: "50px", height: "50px" }}
+                  style={{
+                    position: "absolute",
+                    left: `${carPosition * 0.7}vw`,
+                    transition: "left 1s linear",
+                    width: "50px",
+                    height: "50px",
+                  }}
                   fill={car.color}
                   stroke={car.color}
                 />
@@ -376,9 +405,13 @@ const Home = () => {
         <Box
           sx={{
             transform: "rotate(180deg)",
-            width: "50px",
+            width: "30px",
             position: "relative",
             border: "2px dashed gray",
+            margin: "0 20px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
           }}
         >
           <Typography
@@ -386,9 +419,6 @@ const Home = () => {
               textTransform: "uppercase",
               letterSpacing: "5px",
               transform: "rotate(270deg)",
-              position: "absolute",
-              top: "45%",
-              left: "-60%",
             }}
           >
             Start
@@ -404,6 +434,7 @@ const Home = () => {
                     sx={{
                       padding: "35px",
                       border: "1px dashed rgba(224, 224, 224, 1)",
+                      borderLeft: "0px",
                     }}
                   >
                     <Typography
@@ -421,9 +452,12 @@ const Home = () => {
         <Box
           sx={{
             transform: "rotate(180deg)",
-            width: "50px",
-            position: "relative",
+            width: "30px",
+            marginRight: "5px",
             border: "2px dashed gray",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
           }}
         >
           <Typography
@@ -431,16 +465,47 @@ const Home = () => {
               textTransform: "uppercase",
               letterSpacing: "5px",
               transform: "rotate(270deg)",
-              position: "absolute",
-              top: "45%",
-              left: "-70%",
             }}
           >
             Finish
           </Typography>
         </Box>
-        {/* START BOX */}
+        <Box
+          sx={{
+            border: "1px dashed rgba(224, 224, 224, 1)",
+            width: "50px",
+            borderLeft: "0px",
+            borderRight: "0px",
+          }}
+        >
+          <Box
+            sx={{
+              borderBottom: "1px dashed rgba(224, 224, 224, 1)",
+              height: "98px",
+            }}
+          />
+          <Box
+            sx={{
+              borderBottom: "1px dashed rgba(224, 224, 224, 1)",
+              height: "98px",
+            }}
+          />
+          <Box
+            sx={{
+              borderBottom: "1px dashed rgba(224, 224, 224, 1)",
+              height: "98px",
+            }}
+          />
+          <Box
+            sx={{
+              borderBottom: "1px dashed rgba(224, 224, 224, 1)",
+              height: "98px",
+            }}
+          />
+        </Box>
+        {/* END BOX */}
       </Box>
+      {/* CAR RACE CONTAINER */}
 
       {/* DIVIDER BOX */}
       <Box sx={{ width: "100%", height: "30px", border: "2px dashed black" }} />
@@ -448,7 +513,14 @@ const Home = () => {
 
       {/* Pagination */}
       {garage.length > 0 && (
-        <Box sx={{ display: "flex", justifyContent: "center", marginTop: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: 2,
+            marginBottom: 5,
+          }}
+        >
           {[...Array(Math.ceil(garage.length / 7))].map((_, index) => (
             <Button
               key={index}
